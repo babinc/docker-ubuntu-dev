@@ -9,10 +9,12 @@ RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selectio
 
 # Update the Apt cache and install basic tools
 RUN apt-get update && apt-get install -y software-properties-common openssh-server openssh-client \
-        git build-essential curl tmux nano python-dev python-pip python3-dev python3-pip \
-        libtool libtool-bin autoconf automake cmake g++ pkg-config unzip
+        git build-essential curl nano python-dev python-pip python3-dev python3-pip \
+        libtool libtool-bin autoconf automake cmake g++ pkg-config unzip libevent-dev libncurses-dev \
+	locales
 
-# Install nvm with node and npm
+#------------------NODE-----------------------
+# Install node
 ENV NVM_DIR /usr/local/nvm
 ENV NODE_VERSION 8.1.4
 
@@ -21,17 +23,20 @@ RUN curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.2/install.sh
   && nvm install $NODE_VERSION \
   && nvm alias default $NODE_VERSION \
   && nvm use default
+#---------------------------------------------
 
+#------------------SSH------------------------
 #setup SSH
 RUN mkdir /var/run/sshd
 RUN echo 'root:root' | chpasswd
 RUN sed -ri 's/^PermitRootLogin\s+.*/PermitRootLogin yes/' /etc/ssh/sshd_config
 RUN sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
-EXPOSE 22
 CMD ["/usr/sbin/sshd", "-D"]
+#----------------------------------------------
 
-#download, build, install neovim
-RUN mkdir ~/src \
+#------------------NEOVIM----------------------
+#install neovim
+RUN mkdir ~/src/ \
   && cd ~/src \
   && git clone https://github.com/neovim/neovim.git \
   && cd neovim \
@@ -39,28 +44,56 @@ RUN mkdir ~/src \
   && make \
   && make install
 
+#setup neovim
 RUN mkdir ~/.config/nvim \
   && cd ~/.config/nvim \
   && git clone https://github.com/babinc/.vim_conf.git . \
   && curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
   https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+#----------------------------------------------
+
+#------------------TMUX------------------------
+#install TMUX
+RUN cd ~/src/ \
+  && wget https://github.com/tmux/tmux/releases/download/2.2/tmux-2.2.tar.gz \
+  && tar -xzvf tmux-2.2.tar.gz \
+  && cd tmux-2.2 \
+  && ./configure \
+  && make \
+  && make install
 
 #setup TMUX
-RUN git clone https://github.com/babinc/.tmux_conf.git \
-  && ln -v .tmux_conf/tmux.conf .tmux.conf
+RUN cd ~ \
+  && locale-gen en_US.UTF-8 \
+  && git clone https://github.com/babinc/.tmux_conf.git \
+  && ln -v .tmux_conf/tmux.conf .tmux.conf \
+  && cd ~/src/ \
+  && git clone https://github.com/thewtex/tmux-mem-cpu-load.git \
+  && cd tmux-mem-cpu-load/ \
+  && cmake . \
+  && make \
+  && make install
+#-----------------------------------------------
 
+#-------------------PIP AWS---------------------
 #setup pip and aws
-RUN cd ~/src \
+RUN cd ~/src/ \
   && curl -O https://bootstrap.pypa.io/get-pip.py \
   && python3 get-pip.py --user \
   && touch ~/.bashrc \
   && echo export PATH=~/.local/bin:$PATH >> ~/.bashrc \
   && pip install awscli --upgrade --user
 
+#-------------------BASH------------------------
 #setup bashrc
-RUN cd \
+RUN cd ~ \
   && git clone https://github.com/babinc/.bashrc_conf.git \
   && rm .bashrc \
   && ln -v -s .bashrc_conf/bashrc .bashrc
-#wget https://raw.githubusercontent.com/thestinger/termite/master/termite.terminfo
-#source .bashrc
+#-----------------------------------------------
+
+#-------------------PORTS-----------------------
+EXPOSE 22
+EXPOSE 3000
+EXPOSE 3001
+EXPOSE 8080
