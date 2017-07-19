@@ -46,6 +46,7 @@ RUN mkdir /var/run/sshd
 RUN echo 'root:root' | chpasswd
 RUN sed -ri 's/^PermitRootLogin\s+.*/PermitRootLogin yes/' /etc/ssh/sshd_config
 RUN sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
+RUN /usr/bin/ssh-keygen -A
 CMD ["/usr/sbin/sshd", "-D"]
 #----------------------------------------------
 
@@ -76,18 +77,6 @@ RUN mkdir ~/.config/nvim \
   && git clone https://github.com/babinc/.vim_conf.git . \
   && curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
   https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-
-# install plugins
-RUN nvim +PlugClean! +qall \
-  && nvim +PlugInstall! +qall \
-  && cd ~/.config/nvim/plugged/YouCompleteMe/ \
-  && ./install.py --tern-completer \
-  && pip install neovim --user \
-  && cd ~/ \
-  && git clone https://github.com/babinc/.tern_config.git \
-  && ln -s .tern_config/tern-config .tern-config \
-  && git clone https://github.com/babinc/.ack_conf.git \
-  && ln -s .ack_conf/ackrc .ackrc 
 #------------------------------------------------
 
 #------------------TMUX--------------------------
@@ -136,8 +125,21 @@ RUN useradd -m -p $USERNAME $USERNAME \
   && chown -R $USERNAME /home/$USERNAME
 
 USER $USERNAME
+
 RUN curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
   https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+
+# install plugins
+RUN nvim +PlugClean! +qall \
+  && nvim +PlugInstall! +qall \
+  && cd ~/.config/nvim/plugged/YouCompleteMe/ \
+  && ./install.py --tern-completer \
+  && pip install neovim --user \
+  && cd ~/ \
+  && git clone https://github.com/babinc/.tern_config.git \
+  && ln -s .tern_config/tern-config .tern-config \
+  && git clone https://github.com/babinc/.ack_conf.git \
+  && ln -s .ack_conf/ackrc .ackrc 
 #-----------------------------------------------
 
 #-------------------PORTS-----------------------
