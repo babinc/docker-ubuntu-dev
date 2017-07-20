@@ -9,10 +9,13 @@ RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selectio
 
 # Update the Apt cache and install basic tools
 RUN apt-get update \
-  && apt-get install -y software-properties-common openssh-server openssh-client \
+  && apt-get install -y \
+  software-properties-common \
+  openssh-server openssh-client \
   git build-essential curl nano python-dev python-pip python3-dev python3-pip \
   libtool libtool-bin autoconf automake cmake g++ pkg-config unzip libevent-dev libncurses-dev \
-  locales sudo
+  locales sudo \
+  && apt-get clean
 
 #------------------NODE-----------------------
 # nvm environment variables
@@ -40,16 +43,6 @@ RUN npm -v
 RUN npm install node-inspect -g
 #---------------------------------------------
 
-#------------------SSH------------------------
-# setup SSH
-RUN mkdir /var/run/sshd
-RUN echo 'root:root' | chpasswd
-RUN sed -ri 's/^PermitRootLogin\s+.*/PermitRootLogin yes/' /etc/ssh/sshd_config
-RUN sed -ri 's/UsePAM yes/#UsePAM yes/g' /etc/ssh/sshd_config
-RUN /usr/bin/ssh-keygen -A
-CMD ["/usr/sbin/sshd", "-D"]
-#----------------------------------------------
-
 #-------------------BASH------------------------
 # setup bashrc
 RUN cd ~ \
@@ -61,27 +54,10 @@ RUN cd ~ \
   && source ~/.bashrc
 #-----------------------------------------------
 
-#------------------NEOVIM-----------------------
-# install neovim
-RUN mkdir ~/src/ \
-  && cd ~/src \
-  && git clone https://github.com/neovim/neovim.git \
-  && cd neovim \
-  && git checkout v0.2.0 \
-  && make \
-  && make install
-
-# setup neovim
-RUN mkdir ~/.config/nvim \
-  && cd ~/.config/nvim \
-  && git clone https://github.com/babinc/.vim_conf.git . \
-  && curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
-  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-#------------------------------------------------
-
 #------------------TMUX--------------------------
 # install TMUX
-RUN cd ~/src/ \
+RUN mkdir ~/src/ \
+  && cd ~/src/ \
   && wget https://github.com/tmux/tmux/releases/download/2.2/tmux-2.2.tar.gz \
   && tar -xzvf tmux-2.2.tar.gz \
   && cd tmux-2.2 \
@@ -102,31 +78,35 @@ RUN cd ~ \
   && make install
 #-----------------------------------------------
 
-#-------------------PIP AWS---------------------
-# setup pip and aws
-RUN cd ~/src/ \
-  && curl -O https://bootstrap.pypa.io/get-pip.py \
-  && python3 get-pip.py --user \
-  && touch ~/.bashrc \
-  && echo export PATH=~/.local/bin:$PATH >> ~/.bashrc \
-  && pip install awscli --upgrade --user
-#-----------------------------------------------
+#------------------NEOVIM-----------------------
+# install neovim
+RUN cd ~/src \
+  && git clone https://github.com/neovim/neovim.git \
+  && cd neovim \
+  && git checkout v0.2.0 \
+  && make \
+  && make install
+#------------------------------------------------
 
-#-------------------ADD USER--------------------
+#-------------------ADD USER---------------------
 ENV USERNAME carman
 
-RUN useradd -m -p $USERNAME $USERNAME \
+RUN useradd -m -p $USERNAME $USERNAME && adduser $USERNAME sudo \
   && cp -rf /root/.bashrc_conf/ /home/$USERNAME/ \
   && cp -rf /root/.tmux_conf/ /home/$USERNAME/ \
-  && cp -rf /root/.config/ /home/$USERNAME/ \
   && rm /home/$USERNAME/.bashrc \
   && ln -v -s /home/$USERNAME/.bashrc_conf/bashrc /home/$USERNAME/.bashrc \
   && ln -v -s /home/$USERNAME/.tmux_conf/tmux.conf /home/$USERNAME/.tmux.conf \
   && chown -R $USERNAME /home/$USERNAME
 
 USER $USERNAME
+WORKDIR /home/$USERNAME
 
-RUN curl -fLo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
+# setup neovim
+run mkdir -p ~/.config/nvim \
+  && cd ~/.config/nvim \
+  && git clone https://github.com/babinc/.vim_conf.git . \
+  && curl -flo ~/.local/share/nvim/site/autoload/plug.vim --create-dirs \
   https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 
 # install plugins
@@ -139,7 +119,36 @@ RUN nvim +PlugClean! +qall \
   && git clone https://github.com/babinc/.tern_config.git \
   && ln -s .tern_config/tern-config .tern-config \
   && git clone https://github.com/babinc/.ack_conf.git \
-  && ln -s .ack_conf/ackrc .ackrc 
+  && ln -s .ack_conf/ackrc .ackrc \
+  && git clone https://github.com/babinc/.gitconfig_conf.git \
+  && ln -s .gitconfig_conf/gitconfig .gitconfig
+#-----------------------------------------------
+
+#-------------------PIP AWS---------------------
+# setup pip and aws
+RUN mkdir ~/src/ \
+  && cd ~/src/ \
+  && curl -O https://bootstrap.pypa.io/get-pip.py \
+  && python3 get-pip.py --user \
+  && touch ~/.bashrc \
+  && echo export PATH=~/.local/bin:$PATH >> ~/.bashrc \
+  && pip install awscli --upgrade --user
+#-----------------------------------------------
+
+#------------------SSH------------------------
+USER root
+WORKDIR /root/
+# setup SSH
+RUN mkdir /var/run/sshd
+RUN echo 'root:root' | chpasswd
+RUN sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# SSH login fix. Otherwise user is kicked off after login
+RUN sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+ENV NOTVISIBLE "in users profile"
+RUN echo "export VISIBLE=now" >> /etc/profile
+CMD ["/usr/sbin/sshd", "-D"]
 #-----------------------------------------------
 
 #-------------------PORTS-----------------------
