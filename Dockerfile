@@ -14,7 +14,7 @@ RUN apt-get update \
   openssh-server openssh-client \
   git build-essential curl nano python-dev python-pip python3-dev python3-pip \
   libtool libtool-bin autoconf automake cmake g++ pkg-config unzip libevent-dev libncurses-dev \
-  locales sudo \
+  locales sudo ack-grep \
   && apt-get clean
 
 #------------------NODE-----------------------
