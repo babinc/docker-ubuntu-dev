@@ -17,6 +17,17 @@ RUN apt-get update \
   locales sudo ack-grep iputils-ping libpng-dev net-tools \
   && apt-get clean
 
+#-------------------BASH------------------------
+# setup bashrc
+RUN cd ~ \
+  && git clone https://github.com/babinc/.bashrc_conf.git \
+  && rm .bashrc \
+  && ln -v -s .bashrc_conf/bashrc .bashrc \
+  && git clone https://github.com/babinc/.gitconfig_conf.git \
+  && ln -s .gitconfig_conf/gitconfig .gitconfig \
+  && source ~/.bashrc
+#-----------------------------------------------
+
 #------------------NODE-----------------------
 # nvm environment variables
 ENV NVM_DIR /usr/local/nvm
@@ -42,17 +53,6 @@ RUN npm -v
 # install global libs
 RUN npm install node-inspect -g
 #---------------------------------------------
-
-#-------------------BASH------------------------
-# setup bashrc
-RUN cd ~ \
-  && git clone https://github.com/babinc/.bashrc_conf.git \
-  && rm .bashrc \
-  && ln -v -s .bashrc_conf/bashrc .bashrc \
-  && git clone https://github.com/babinc/.gitconfig_conf.git \
-  && ln -s .gitconfig_conf/gitconfig .gitconfig \
-  && source ~/.bashrc
-#-----------------------------------------------
 
 #------------------TMUX--------------------------
 # install TMUX
