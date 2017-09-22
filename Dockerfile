@@ -51,7 +51,7 @@ RUN node -v
 RUN npm -v
 
 # install global libs
-RUN npm install node-inspect -g
+RUN npm install node-inspect pm2 babel-cli -g
 #---------------------------------------------
 
 #------------------TMUX--------------------------
@@ -150,7 +150,7 @@ ENV NOTVISIBLE "in users profile"
 RUN echo "export VISIBLE=now" >> /etc/profile
 CMD ["/usr/sbin/sshd", "-D"]
 #-----------------------------------------------
-
+RUN chown -R $USERNAME $(npm config get prefix)/{lib/node_modules,bin,share}
 #-------------------PORTS-----------------------
 EXPOSE 22
 EXPOSE 3000
